@@ -1,0 +1,40 @@
+# Core Agent Framework
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langgraph>=0.1.0
+# Groq LLM Replaced Google Gemini)
+langchain-groq>=0.2.0
+groq>=0.9.0
+
+# Tavily Search Tool
+tavily-python>=0.5.0
+
+# Web Scraping & Parsers
+beautifulsoup4>=4.12.0
+requests>=2.32.0
+lxml>=5.3.0
+html5lib>=1.1
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Async Support (Crucial for multi-agent execution)
+aiohttp>=3.10.0
+
+# Data Handling & Validation
+pandas>=2.2.0
+pydantic>=2.8.0
+
+# Token Counting (Replaced with Hugging Face tokenizers for open-weight models)
+tokenizers>=0.19.0
+
+# Robustness & Speed
+tenacity>=8.4.0
+orjson>=3.10.0
+
+# Logging & Debugging
+rich>=13.7.0
+
+# UI
+streamlit
