@@ -93,14 +93,6 @@ streamlit run app.py
 - Tool-enabled agents can call external functions for grounding.
 - Streamlit UI makes it easy to explore the research workflow interactively.
 
-## Cons
-
-- Relies on the Tavily search service and API availability.
-- Scraping is simple and may fail on complex or JavaScript-heavy pages.
-- Only one page is scraped per run instead of aggregating many sources.
-- No persistence, caching, or history tracking.
-- Minimal error handling in the current implementation.
-
 ## Future improvements
 
 - Add multi-source aggregation and source ranking.
