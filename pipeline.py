@@ -1,79 +1,113 @@
-from typing import TypedDict
+from typing import TypedDict, Literal
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
 
-# Import our agents and chains
+# Import our agents, chains, and tools
 from agents import search_agent, reader_agent, writer_chain, critic_chain, web_search, scape_url
 
-# Define state structure shared across agents
+# 1. Enhanced State Management
 class ResearchState(TypedDict):
     topic: str
     search_results: str
     scraped_content: str
     report: str
     feedback: str
+    loop_count: int  # Prevent infinite loops between Writer and Critic
 
-# Node 1: Run Search Agent
+# 2. Node Definitions (Strictly Model Invocations)
 def call_search_agent(state: ResearchState):
-    print("\n" + "="*50 + "\nStep 1 - Search agent is working ...\n" + "="*50)
+    print("\n🚀 [Node: Search] Analysing research scope...")
+    # We pass the entire message history or string; LangGraph natively checks for tool_calls
     response = search_agent.invoke({"input": f"Find recent, reliable information about: {state['topic']}"})
     
-    # Execute tool if the model requested it
+    # Check if the agent decided to call a tool
     if response.tool_calls:
-        tool_output = web_search.invoke(response.tool_calls[0]['args'])
-        return {"search_results": str(tool_output)}
+        return {"search_results": "tool_called", "messages": [response]} 
     return {"search_results": response.content}
 
-# Node 2: Run Reader Agent
 def call_reader_agent(state: ResearchState):
-    print("\n" + "="*50 + "\nStep 2 - Reader agent is scraping resources ...\n" + "="*50)
+    print("\n📖 [Node: Reader] Contextualizing resources...")
     prompt_input = (
         f"Based on the following search results about '{state['topic']}', "
         f"pick the most relevant URL and scrape it for deeper content.\n\n"
-        f"Search Results:\n{state['search_results'][:800]}"
+        f"Search Results:\n{state['search_results']}" # Let the LLM read full context or handle via system prompt
     )
     response = reader_agent.invoke({"input": prompt_input})
-    
-    # Execute tool if the model requested it
-    if response.tool_calls:
-        tool_output = scape_url.invoke(response.tool_calls[0]['args'])
-        return {"scraped_content": str(tool_output)}
     return {"scraped_content": response.content}
 
-# Node 3: Run Writer Chain
 def call_writer_chain(state: ResearchState):
-    print("\n" + "="*50 + "\nStep 3 - Writer is drafting the report ...\n" + "="*50)
+    print("\n📝 [Node: Writer] Drafting/Refining the structured report...")
     research_combined = f"SEARCH RESULTS:\n{state['search_results']}\n\nDETAILED SCRAPED CONTENT:\n{state['scraped_content']}"
-    report = writer_chain.invoke({"topic": state['topic'], "research": research_combined})
-    return {"report": report}
+    
+    # Inject feedback if it exists from a previous loop
+    feedback_context = f"\n\nPrevious Critic Feedback to address:\n{state.get('feedback', '')}" if state.get('feedback') else ""
+    
+    report = writer_chain.invoke({
+        "topic": state['topic'], 
+        "research": research_combined + feedback_context
+    })
+    
+    # Track iterations to prevent budget overruns
+    current_loops = state.get("loop_count", 0)
+    return {"report": report, "loop_count": current_loops + 1}
 
-# Node 4: Run Critic Chain
 def call_critic_chain(state: ResearchState):
-    print("\n" + "="*50 + "\nStep 4 - Critic is reviewing the report ...\n" + "="*50)
+    print("\n🧐 [Node: Critic] Assessing quality standards...")
     feedback = critic_chain.invoke({"report": state['report']})
-    print("\n--- Final Critic Feedback ---\n", feedback)
     return {"feedback": feedback}
 
-# Build Orchestration Graph
+# 3. Conditional Routing Logic
+def route_critic_decision(state: ResearchState) -> Literal["writer", "__end__"]:
+    """Determines whether the report needs revision or is ready for production."""
+    feedback = state.get("feedback", "").lower()
+    loop_count = state.get("loop_count", 0)
+    
+    # Set a hard safety ceiling for API costs (e.g., max 3 revisions)
+    if loop_count >= 3:
+        print("\n⚠️ [System] Maximum revision cycles reached. Forcing finalization.")
+        return END
+        
+    if "approved" in feedback or "accept" in feedback or "looks good" in feedback:
+        print("\n✅ [System] Critic approved the report!")
+        return END
+        
+    print(f"\n🔄 [System] Report rejected. Routing back to Writer (Revision cycle: {loop_count})")
+    return "writer"
+
+# 4. Native Tool Infrastructure Setup
+# Wrapping tools into an official LangGraph ToolNode execution block
+tools_node = ToolNode([web_search, scape_url])
+
+# 5. Build Orchestration Graph
 workflow = StateGraph(ResearchState)
 
-# Add processing blocks
+# Register Nodes
 workflow.add_node("search", call_search_agent)
 workflow.add_node("reader", call_reader_agent)
 workflow.add_node("writer", call_writer_chain)
 workflow.add_node("critic", call_critic_chain)
 
-# Map linear flow execution path
+# Register Graph Topology (Flow Control)
 workflow.set_entry_point("search")
 workflow.add_edge("search", "reader")
 workflow.add_edge("reader", "writer")
 workflow.add_edge("writer", "critic")
-workflow.add_edge("critic", END)
 
-# Compile graph into a runnable application
+# Dynamic Routers
+workflow.add_conditional_edges(
+    "critic",
+    route_critic_decision,
+    {
+        "writer": "writer",
+        "__end__": END
+    }
+)
+
+# Compile graph into a runnable production application
 app = workflow.compile()
 
 if __name__ == "__main__":
     user_topic = input("\nEnter a research topic: ")
-    final_state = app.invoke({"topic": user_topic})
-    print("\nPipeline Complete!")
+    # Initialize the loop counter at 0 on start
+    final_state = app.invoke({"topic": user_topic, "loop_count": 0})
+    print("\n✨ Pipeline Complete! Final report compiled.")
