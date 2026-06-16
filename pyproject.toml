@@ -1,7 +1,24 @@
 [project]
-name = "multi-agent-research-agent"
+name = "multi-agent-research-system"
 version = "0.1.0"
-description = "Add your description here"
+description = "A production-grade Multi-Agent Research Framework built with LangGraph, Groq, and Streamlit."
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = []
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+    "langchain-core>=0.1.0",
+    "langchain-groq>=0.1.0",
+    "langgraph>=0.2.0",
+    "python-dotenv>=1.0.1",
+    "requests>=2.31.0",
+    "rich>=13.7.1",
+    "streamlit>=1.35.0",
+    "tavily-python>=0.4.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]

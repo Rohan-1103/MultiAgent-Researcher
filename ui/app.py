@@ -1,5 +1,5 @@
 import streamlit as st
-from pipeline import app
+from src.graph.pipeline import app
 
 # 1. Premium Page Configuration
 st.set_page_config(
