@@ -51,37 +51,39 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
     st.markdown("### 🪐 Live Orchestration Stream")
     status_container = st.container()
     
+    # Initialize global tracking dictionary
     final_state = {}
     current_loop_display = 0
 
     with status_container:
         with st.status("⚡ Initializing multi-agent graph coordination...", expanded=True) as graph_status:
             
+            # Pass user-selected max_loops explicitly to the graph state
             for event in app.stream({"topic": topic, "loop_count": 0, "max_loops": max_loops}, stream_mode="updates"):
                 
-                # --- 1. Intercept Search Phase ---
+                # --- 1. Intercept Search Agent Updates ---
                 if "search" in event:
                     st.markdown("🔍 **Search Agent** has compiled web citations and snippets.")
                     node_output = event.get("search") or {}
                     if "search_results" in node_output:
                         final_state["search_results"] = node_output["search_results"]
                 
-                # --- 2. Intercept Reader Phase ---
-                elif "reader" in event:
+                # --- 2. Intercept Reader Agent Updates ---
+                if "reader" in event:
                     st.markdown("📖 **Reader Agent** extracted deep main-article content from selected URLs.")
                     node_output = event.get("reader") or {}
                     if "scraped_content" in node_output:
                         final_state["scraped_content"] = node_output["scraped_content"]
                         
                 # --- 3. Intercept Copywriting and Critique Loops ---
-                elif "writer" in event:
+                if "writer" in event:
                     node_output = event.get("writer") or {}
                     current_loop_display = node_output.get("loop_count", current_loop_display)
                     st.markdown(f"📝 **Writer Agent** compiled an updated report draft. *(Cycle Iteration: {current_loop_display})*")
                     if "report" in node_output:
                         final_state["report"] = node_output["report"]
                         
-                elif "critic" in event:
+                if "critic" in event:
                     node_output = event.get("critic") or {}
                     feedback_text = node_output.get("feedback", "")
                     final_state["feedback"] = feedback_text
@@ -97,6 +99,7 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
     st.divider()
     st.markdown("### 📊 Generated Analytical Artifacts")
     
+    # Organize outputs into clean, functional tabbed segments
     tab_report, tab_critic, tab_sources = st.tabs([
         "📄 Executive Report", 
         "🧐 Quality Control Logs", 
