@@ -1,5 +1,5 @@
 import re
-from langchain.tools import tool
+from langchain_core.tools import tool
 from tavily import TavilyClient
 from src.config import settings
 
