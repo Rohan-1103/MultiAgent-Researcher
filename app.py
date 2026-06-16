@@ -30,7 +30,7 @@ with st.sidebar:
     st.info("The Critic Agent will automatically force-finalize the output if it hits this revision ceiling to preserve your API tokens.")
     st.divider()
     
-    st.caption("⚡ Built by Amit Goswami")
+    st.caption("⚡ Built by Rohan Goswami")
 
 # 4. Main Header Component
 st.markdown("<div class='report-title'>🤖 InsightEngine AI</div>", unsafe_allow_html=True)
