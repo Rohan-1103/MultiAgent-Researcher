@@ -60,43 +60,46 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
         # We wrap everything in an elegant status wrapper that expands during runtime
         with st.status("⚡ Initializing multi-agent graph coordination...", expanded=True) as graph_status:
             
-            # Using app.stream allows us to catch node completions exactly when they finish
-            # stream_mode="updates" yields the dictionary returned by individual graph nodes
-            # Using app.stream allows us to catch node completions exactly when they finish
-            for event in app.stream({"topic": topic, "loop_count": 0}, stream_mode="updates"):
+            # app.stream safely accepts max_loops configuration parameter mapping to state
+            for event in app.stream({"topic": topic, "loop_count": 0, "max_loops": max_loops}, stream_mode="updates"):
                 
-                # 1. Intercept Search Phase Transitions
+                # --- 1. Intercept Search Phase Transitions Safely ---
                 if "search" in event:
                     st.markdown("🔍 **Search Agent** has analyzed scope and generated initial actions.")
-                    # Only map data if the key was actively returned by the node runtime
-                    if "search_results" in event["search"]:
-                        final_state["search_results"] = event["search"]["search_results"]
+                    node_output = event.get("search") or {}
+                    if "search_results" in node_output:
+                        final_state["search_results"] = node_output["search_results"]
                         
                 elif "search_tools" in event:
                     st.markdown("⚡ **Search Engine Tool** executed successfully. Indices aggregated.")
-                    if "search_results" in event["search_tools"]:
-                        final_state["search_results"] = event["search_tools"]["search_results"]
+                    node_output = event.get("search_tools") or {}
+                    if "search_results" in node_output:
+                        final_state["search_results"] = node_output["search_results"]
                 
-                # 2. Intercept Reader Phase Transitions
+                # --- 2. Intercept Reader Phase Transitions Safely ---
                 elif "reader" in event:
                     st.markdown("📖 **Reader Agent** picked target URLs and initialized extraction.")
-                    if "scraped_content" in event["reader"]:
-                        final_state["scraped_content"] = event["reader"]["scraped_content"]
+                    node_output = event.get("reader") or {}
+                    if "scraped_content" in node_output:
+                        final_state["scraped_content"] = node_output["scraped_content"]
                         
                 elif "reader_tools" in event:
                     st.markdown("⚡ **Headless Scraper Tool** finished reading document elements.")
-                    if "scraped_content" in event["reader_tools"]:
-                        final_state["scraped_content"] = event["reader_tools"]["scraped_content"]
+                    node_output = event.get("reader_tools") or {}
+                    if "scraped_content" in node_output:
+                        final_state["scraped_content"] = node_output["scraped_content"]
                         
-                # 3. Intercept Copywriting and Critique Loops
+                # --- 3. Intercept Copywriting and Critique Loops Safely ---
                 elif "writer" in event:
-                    current_loop_display = event["writer"].get("loop_count", current_loop_display)
+                    node_output = event.get("writer") or {}
+                    current_loop_display = node_output.get("loop_count", current_loop_display)
                     st.markdown(f"📝 **Writer Agent** compiled an updated report draft. *(Cycle Iteration: {current_loop_display})*")
-                    if "report" in event["writer"]:
-                        final_state["report"] = event["writer"]["report"]
+                    if "report" in node_output:
+                        final_state["report"] = node_output["report"]
                         
                 elif "critic" in event:
-                    feedback_text = event["critic"].get("feedback", "")
+                    node_output = event.get("critic") or {}
+                    feedback_text = node_output.get("feedback", "")
                     final_state["feedback"] = feedback_text
                     
                     if "Verdict: APPROVED" in feedback_text:
@@ -118,13 +121,13 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
     ])
     
     with tab_report:
-        if "report" in final_state:
+        if "report" in final_state and final_state["report"]:
             st.markdown(final_state["report"])
         else:
             st.info("No report markdown artifact found in final state.")
             
     with tab_critic:
-        if "feedback" in final_state:
+        if "feedback" in final_state and final_state["feedback"]:
             st.markdown(f"**Total Workflow Revisions Ran:** `{current_loop_display}`")
             st.divider()
             st.markdown(final_state["feedback"])
@@ -135,7 +138,7 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
         col1, col2 = st.columns(2)
         with col1:
             with st.expander("Raw Web Snippets (Tavily Index)", expanded=False):
-                st.text(final_state.get("search_results", "Empty query data."))
+                st.text(final_state.get("search_results", "Empty query data or skipped by agent direct path."))
         with col2:
             with st.expander("Raw Extracted Webpage Strings", expanded=False):
-                st.text(final_state.get("scraped_content", "Empty document collection."))
+                st.text(final_state.get("scraped_content", "Empty document collection or skipped by agent direct path."))
