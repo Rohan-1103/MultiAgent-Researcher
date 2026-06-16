@@ -9,38 +9,37 @@ from src.graph.nodes import (
 )
 
 def route_critic_decision(state: ResearchState) -> Literal["writer", "__end__"]:
-    """Determines whether the report needs revision or is ready to finish."""
     feedback = state.get("feedback", "").strip().split("\n")[-1]
     loop_count = state.get("loop_count", 0)
+    max_allowed_loops = state.get("max_loops", 3)
     
-    # 3-pass safe token budget threshold
-    if loop_count >= 3:
-        print("\n⚠️ [System] Max revision cycles hit. Closing pipeline.")
+    if loop_count >= max_allowed_loops:
+        print(f"\n⚠️ [System] Dynamic revision limit ({max_allowed_loops}) reached. Forcing completion.")
         return END
         
     if "APPROVED" in feedback:
-        print("\n✅ [System] Critic issued layout approval status.")
+        print("\n✅ [System] Critic issued structural draft approval.")
         return END
         
-    print(f"\n🔄 [System] Structural optimization requested. Cycle: {loop_count}")
+    print(f"\n🔄 [System] Structural revision cycle running: {loop_count}")
     return "writer"
 
-# Building layout graph topology
+# 2. Construct the Workflow Graph
 workflow = StateGraph(ResearchState)
 
-# Add modular execution nodes
+# Register Core Agent Nodes
 workflow.add_node("search", call_search_agent)
 workflow.add_node("reader", call_reader_agent)
 workflow.add_node("writer", call_writer_chain)
 workflow.add_node("critic", call_critic_chain)
 
-# Layout mapping flow
+# Linear Topologies matching our self-contained node logic
 workflow.set_entry_point("search")
 workflow.add_edge("search", "reader")
 workflow.add_edge("reader", "writer")
 workflow.add_edge("writer", "critic")
 
-# Register contextual feedback loop
+# Register dynamic conditional feedback loop
 workflow.add_conditional_edges(
     "critic",
     route_critic_decision,

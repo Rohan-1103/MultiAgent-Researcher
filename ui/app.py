@@ -27,7 +27,7 @@ with st.sidebar:
     
     st.markdown("### ⚙️ Pipeline Parameters")
     max_loops = st.slider("Max Revision Cycles", min_value=1, max_value=5, value=3)
-    st.info("The Critic Agent will automatically force-finalize the output if it hits this revision ceiling to preserve your API tokens.")
+    st.info("The Critic Agent will force-finalize the output if it hits this revision ceiling.")
     st.divider()
     
     st.caption("⚡ Built by Rohan Goswami")
@@ -39,57 +39,41 @@ st.markdown("<div class='subtitle'>Advanced Multi-Agent Automated Research Frame
 # 5. Core Operational Input Box
 topic = st.text_input(
     "Identify your research objective:",
-    placeholder="e.g., Quantum computing breakthroughs in cryptographic systems (2026)"
+    placeholder="e.g., Quantum computing breakthroughs in cryptographic systems"
 )
 
 # 6. Execution Pipeline Trigger
 if st.button("Launch Autonomous Agents", type="primary", use_container_width=True):
     if not topic.strip():
-        st.warning("⚠️ Action required: Please enter a clear research topic before initiating the workflow.")
+        st.warning("⚠️ Action required: Please enter a clear research topic before initiating.")
         st.stop()
 
-    # Create distinct visual zones for runtime logging vs results
     st.markdown("### 🪐 Live Orchestration Stream")
     status_container = st.container()
     
-    # Initialize runtime variables
     final_state = {}
     current_loop_display = 0
 
     with status_container:
-        # We wrap everything in an elegant status wrapper that expands during runtime
         with st.status("⚡ Initializing multi-agent graph coordination...", expanded=True) as graph_status:
             
-            # app.stream safely accepts max_loops configuration parameter mapping to state
             for event in app.stream({"topic": topic, "loop_count": 0, "max_loops": max_loops}, stream_mode="updates"):
                 
-                # --- 1. Intercept Search Phase Transitions Safely ---
+                # --- 1. Intercept Search Phase ---
                 if "search" in event:
-                    st.markdown("🔍 **Search Agent** has analyzed scope and generated initial actions.")
+                    st.markdown("🔍 **Search Agent** has compiled web citations and snippets.")
                     node_output = event.get("search") or {}
                     if "search_results" in node_output:
                         final_state["search_results"] = node_output["search_results"]
-                        
-                elif "search_tools" in event:
-                    st.markdown("⚡ **Search Engine Tool** executed successfully. Indices aggregated.")
-                    node_output = event.get("search_tools") or {}
-                    if "search_results" in node_output:
-                        final_state["search_results"] = node_output["search_results"]
                 
-                # --- 2. Intercept Reader Phase Transitions Safely ---
+                # --- 2. Intercept Reader Phase ---
                 elif "reader" in event:
-                    st.markdown("📖 **Reader Agent** picked target URLs and initialized extraction.")
+                    st.markdown("📖 **Reader Agent** extracted deep main-article content from selected URLs.")
                     node_output = event.get("reader") or {}
                     if "scraped_content" in node_output:
                         final_state["scraped_content"] = node_output["scraped_content"]
                         
-                elif "reader_tools" in event:
-                    st.markdown("⚡ **Headless Scraper Tool** finished reading document elements.")
-                    node_output = event.get("reader_tools") or {}
-                    if "scraped_content" in node_output:
-                        final_state["scraped_content"] = node_output["scraped_content"]
-                        
-                # --- 3. Intercept Copywriting and Critique Loops Safely ---
+                # --- 3. Intercept Copywriting and Critique Loops ---
                 elif "writer" in event:
                     node_output = event.get("writer") or {}
                     current_loop_display = node_output.get("loop_count", current_loop_display)
@@ -113,7 +97,6 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
     st.divider()
     st.markdown("### 📊 Generated Analytical Artifacts")
     
-    # Organize outputs into clean, functional tabbed segments
     tab_report, tab_critic, tab_sources = st.tabs([
         "📄 Executive Report", 
         "🧐 Quality Control Logs", 
@@ -138,7 +121,7 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
         col1, col2 = st.columns(2)
         with col1:
             with st.expander("Raw Web Snippets (Tavily Index)", expanded=False):
-                st.text(final_state.get("search_results", "Empty query data or skipped by agent direct path."))
+                st.text(final_state.get("search_results", "Empty query data."))
         with col2:
             with st.expander("Raw Extracted Webpage Strings", expanded=False):
-                st.text(final_state.get("scraped_content", "Empty document collection or skipped by agent direct path."))
+                st.text(final_state.get("scraped_content", "Empty document collection."))
