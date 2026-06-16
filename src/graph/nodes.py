@@ -3,42 +3,30 @@ from src.graph.state import ResearchState
 from src.agents import search_agent, reader_agent, writer_chain, critic_chain
 
 def call_search_agent(state: ResearchState) -> dict:
-    """
-    Node 1: Executes the Search Agent to extract web context.
-    Swallows tool calls internally or returns the raw message content.
-    """
-    print("\n🚀 [Node: Search] Analysing research scope and running web indices...", flush=True)
-    
-    # We pass a highly structured prompt string to guide Llama-3.3-70b
+    """Invokes the search agent. Returns the raw model response."""
+    print("\n🚀 [Node: Search] Analyzing scope...", flush=True)
     response = search_agent.invoke({"input": f"Find recent, reliable information about: {state['topic']}"})
     
-    # Check if the LLM generated structural tool calls natively
+    # Senior Upgrade: If the LLM requests a tool call, we store the raw AIMessage object 
+    # inside a temporary internal dictionary key so LangGraph's ToolNode can read it.
     if hasattr(response, 'tool_calls') and response.tool_calls:
-        # LangGraph's ToolNode will pick this up automatically if connected, 
-        # or we return a fallback placeholder to notify the state.
-        return {"search_results": f"Tool Execution Requested: {response.tool_calls[0]['name']}"}
-        
+        return {"messages": [response]}
     return {"search_results": response.content}
 
 
 def call_reader_agent(state: ResearchState) -> dict:
-    """
-    Node 2: Selects key candidate URLs and processes them via the deep scraping pipeline.
-    """
-    print("\n📖 [Node: Reader] Processing top search results and extracting deep text...", flush=True)
-    
-    # Prevent crashing if search results are completely empty
-    search_context = state.get("search_results", "No search results available.")
-    
+    """Invokes the reader agent based on the updated search results."""
+    print("\n📖 [Node: Reader] Contextualizing resources...", flush=True)
     prompt_input = (
         f"Based on the following search results about '{state['topic']}', "
         f"pick the most relevant URL and scrape it for deeper content.\n\n"
-        f"Search Results:\n{search_context}"
+        f"Search Results:\n{state.get('search_results', '')}"
     )
-    
     response = reader_agent.invoke({"input": prompt_input})
+    
+    if hasattr(response, 'tool_calls') and response.tool_calls:
+        return {"messages": [response]}
     return {"scraped_content": response.content}
-
 
 def call_writer_chain(state: ResearchState) -> dict:
     """
