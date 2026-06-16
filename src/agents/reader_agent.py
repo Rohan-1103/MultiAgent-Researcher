@@ -1,10 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from src.config import settings
-from src.tools import scrape_url
+from src.tools.scraper import scrape_url
 
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, groq_api_key=settings.GROQ_API_KEY)
-reader_llm = llm.bind_tools([scrape_url])
+
+# [CRITICAL UPDATE]: Enforce 'tool_choice' to guarantee URL extraction
+reader_llm = llm.bind_tools([scrape_url], tool_choice="scrape_url")
 
 reader_prompt = ChatPromptTemplate.from_messages([
     ("system", (

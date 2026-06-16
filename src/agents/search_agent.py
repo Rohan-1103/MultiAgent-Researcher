@@ -1,10 +1,12 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from src.config import settings
-from src.tools import web_search
+from src.tools.search import web_search
 
 llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0, groq_api_key=settings.GROQ_API_KEY)
-search_llm = llm.bind_tools([web_search])
+
+# [CRITICAL UPDATE]: Enforce 'tool_choice' so the model cannot bypass the tool
+search_llm = llm.bind_tools([web_search], tool_choice="web_search")
 
 search_prompt = ChatPromptTemplate.from_messages([
     ("system", (

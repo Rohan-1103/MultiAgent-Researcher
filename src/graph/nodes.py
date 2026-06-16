@@ -1,4 +1,5 @@
 import sys
+import json
 from src.graph.state import ResearchState
 from src.agents import search_agent, reader_agent, writer_chain, critic_chain
 from src.tools import web_search, scrape_url
@@ -21,8 +22,19 @@ def call_search_agent(state: ResearchState) -> dict:
     # If the LLM requested a tool, handle it dynamically right here
     if tool_calls:
         try:
-            # Safely parse arguments regardless of format (dict vs list structure)
-            args = tool_calls[0]['args'] if isinstance(tool_calls[0], dict) else tool_calls[0].args
+            # 1. Safely extract raw args regardless of format (dict vs list structure)
+            raw_args = tool_calls[0]['args'] if isinstance(tool_calls[0], dict) else tool_calls[0].args
+            
+            # 2. Force parse into a dictionary if it came back as a JSON string
+            if isinstance(raw_args, str):
+                try:
+                    args = json.loads(raw_args)
+                except json.JSONDecodeError:
+                    # Fallback if the LLM just sent a raw text string instead of JSON
+                    args = raw_args 
+            else:
+                args = raw_args
+                
             print(f"   ↳ 🛠️ Running web_search tool with arguments: {args}", flush=True)
             
             # Execute the tool synchronously to guarantee data alignment
@@ -30,6 +42,7 @@ def call_search_agent(state: ResearchState) -> dict:
             
             # Commit data straight to the state key
             return {"search_results": str(tool_output)}
+            
         except Exception as e:
             print(f"   ⚠️ Tool execution error in Search Node: {str(e)}", flush=True)
             return {"search_results": f"Error running search engine tool: {str(e)}"}
@@ -65,11 +78,24 @@ def call_reader_agent(state: ResearchState) -> dict:
 
     if tool_calls:
         try:
-            args = tool_calls[0]['args'] if isinstance(tool_calls[0], dict) else tool_calls[0].args
+            # 1. Safely extract raw args
+            raw_args = tool_calls[0]['args'] if isinstance(tool_calls[0], dict) else tool_calls[0].args
+            
+            # 2. Force parse into a dictionary if it came back as a JSON string
+            if isinstance(raw_args, str):
+                try:
+                    args = json.loads(raw_args)
+                except json.JSONDecodeError:
+                    args = raw_args
+            else:
+                args = raw_args
+                
             print(f"   ↳ 🛠️ Running scrape_url tool with arguments: {args}", flush=True)
             
+            # Execute scraper tool
             tool_output = scrape_url.invoke(args)
             return {"scraped_content": str(tool_output)}
+            
         except Exception as e:
             print(f"   ⚠️ Tool execution error in Reader Node: {str(e)}", flush=True)
             return {"scraped_content": f"Error running scraper tool: {str(e)}"}

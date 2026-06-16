@@ -1,4 +1,12 @@
+import sys
+import os
 import streamlit as st
+
+# [CRITICAL UPDATE]: Path Resolution
+# This ensures that Python can find the 'src' directory even if you run this file directly from the ui folder.
+# It explicitly adds the root directory of your project to the system path.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 from src.graph.pipeline import app
 
 # 1. Premium Page Configuration
@@ -88,7 +96,7 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
                     feedback_text = node_output.get("feedback", "")
                     final_state["feedback"] = feedback_text
                     
-                    if "Verdict: APPROVED" in feedback_text:
+                    if "APPROVED" in feedback_text:
                         st.markdown("✅ **Critic Agent** formally verified and approved the report structure.")
                     else:
                         st.markdown("🔄 **Critic Agent** issued a change request. Re-routing workflow back to Writer.")
