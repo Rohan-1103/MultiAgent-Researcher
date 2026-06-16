@@ -62,27 +62,43 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
             
             # Using app.stream allows us to catch node completions exactly when they finish
             # stream_mode="updates" yields the dictionary returned by individual graph nodes
+            # Using app.stream allows us to catch node completions exactly when they finish
             for event in app.stream({"topic": topic, "loop_count": 0}, stream_mode="updates"):
                 
-                # Check which node just yielded data
+                # 1. Intercept Search Phase Transitions
                 if "search" in event:
-                    st.markdown("🔍 **Search Agent** has compiled initial web citations and snippets.")
-                    final_state["search_results"] = event["search"]["search_results"]
-                    
+                    st.markdown("🔍 **Search Agent** has analyzed scope and generated initial actions.")
+                    # Only map data if the key was actively returned by the node runtime
+                    if "search_results" in event["search"]:
+                        final_state["search_results"] = event["search"]["search_results"]
+                        
+                elif "search_tools" in event:
+                    st.markdown("⚡ **Search Engine Tool** executed successfully. Indices aggregated.")
+                    if "search_results" in event["search_tools"]:
+                        final_state["search_results"] = event["search_tools"]["search_results"]
+                
+                # 2. Intercept Reader Phase Transitions
                 elif "reader" in event:
-                    st.markdown("📖 **Reader Agent** extracted deep main-article content from selected URLs.")
-                    final_state["scraped_content"] = event["reader"]["scraped_content"]
-                    
+                    st.markdown("📖 **Reader Agent** picked target URLs and initialized extraction.")
+                    if "scraped_content" in event["reader"]:
+                        final_state["scraped_content"] = event["reader"]["scraped_content"]
+                        
+                elif "reader_tools" in event:
+                    st.markdown("⚡ **Headless Scraper Tool** finished reading document elements.")
+                    if "scraped_content" in event["reader_tools"]:
+                        final_state["scraped_content"] = event["reader_tools"]["scraped_content"]
+                        
+                # 3. Intercept Copywriting and Critique Loops
                 elif "writer" in event:
-                    current_loop_display = event["writer"]["loop_count"]
+                    current_loop_display = event["writer"].get("loop_count", current_loop_display)
                     st.markdown(f"📝 **Writer Agent** compiled an updated report draft. *(Cycle Iteration: {current_loop_display})*")
-                    final_state["report"] = event["writer"]["report"]
-                    
+                    if "report" in event["writer"]:
+                        final_state["report"] = event["writer"]["report"]
+                        
                 elif "critic" in event:
-                    feedback_text = event["critic"]["feedback"]
+                    feedback_text = event["critic"].get("feedback", "")
                     final_state["feedback"] = feedback_text
                     
-                    # Split or parse the verdict line to update user elegantly
                     if "Verdict: APPROVED" in feedback_text:
                         st.markdown("✅ **Critic Agent** formally verified and approved the report structure.")
                     else:
