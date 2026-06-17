@@ -130,9 +130,16 @@ if st.button("Launch Autonomous Agents", type="primary", use_container_width=Tru
             
     with tab_sources:
         col1, col2 = st.columns(2)
+        
         with col1:
             with st.expander("Raw Web Snippets (Tavily Index)", expanded=False):
-                st.text(final_state.get("search_results", "Empty query data."))
+                raw_search = final_state.get("search_results", "Empty query data.")
+                # Inject double-spaces before newlines to force Markdown line breaks
+                formatted_search = raw_search.replace("\n", "  \n")
+                st.markdown(formatted_search)
+                
         with col2:
             with st.expander("Raw Extracted Webpage Strings", expanded=False):
+                # We can leave this as st.text() to prevent massive scraped articles 
+                # from accidentally triggering weird Markdown formatting
                 st.text(final_state.get("scraped_content", "Empty document collection."))
